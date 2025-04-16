@@ -1,10 +1,9 @@
 import { Router } from 'express';
-import asyncHandler from 'express-async-handler';
-import * as authController from '../controllers/auth.controller';
+import { login, verifyEmail } from '../controllers/auth.controller';
 
 const router = Router();
 
-router.post('/login', asyncHandler(authController.login));
-
+router.post('/login', login);
+router.post('/verify', verifyEmail); // ✅ ruta de verificación OTP
 
 export default router;

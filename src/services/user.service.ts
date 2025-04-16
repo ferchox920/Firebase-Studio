@@ -1,6 +1,8 @@
+import { sendVerificationEmail } from '../mails/sendVerificationEmail';
 import { User } from '../models/user.entity';
 import { logger } from '../utils/logger';
 import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 
 export const getAllUsers = async (): Promise<User[]> => {
   logger.info('Obteniendo todos los usuarios');
@@ -11,7 +13,6 @@ export const getUserById = async (id: string): Promise<User | null> => {
   logger.info(`Buscando usuario con ID ${id}`);
   return await User.findOneBy({ id });
 };
-
 
 export const createUser = async (data: {
   name: string;
@@ -31,6 +32,7 @@ export const createUser = async (data: {
   logger.info(`Creando usuario con email ${data.email}`);
 
   const hashedPassword = await bcrypt.hash(data.password, 10);
+  const otp = crypto.randomInt(100000, 999999).toString(); // 🔒 OTP de 6 dígitos
 
   const user = User.create({
     name: data.name,
@@ -38,11 +40,16 @@ export const createUser = async (data: {
     password: hashedPassword,
     role: data.role,
     verified: false,
-    otp: undefined,
+    otp,
   });
 
-  return await user.save();
+  const savedUser = await user.save();
+  await sendVerificationEmail(savedUser.email, otp);
+
+  logger.info(`OTP enviado a ${savedUser.email}`);
+  return savedUser;
 };
+
 
 
 export const updateUser = async (id: string, data: Partial<User>): Promise<User | null> => {

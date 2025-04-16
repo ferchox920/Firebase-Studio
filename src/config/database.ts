@@ -7,7 +7,7 @@ dotenv.config();
 export const AppDataSource = new DataSource({
   type: 'postgres',
   url: process.env.DATABASE_URL,
-  synchronize: true, // ❗ para desarrollo, crea/actualiza la tabla automáticamente
+  synchronize: true,
   logging: false,
   entities: [User],
   migrations: [],

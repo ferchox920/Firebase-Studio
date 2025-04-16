@@ -69,6 +69,7 @@ export const updateUser = async (req: Request, res: Response, next: NextFunction
     next(error);
   }
 };
+
 export const deleteUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { id } = idParamSchema.parse(req.params); // ✅ validamos UUID
