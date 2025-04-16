@@ -113,7 +113,6 @@ ngrok http 3000
 ## 🛠 Próximas mejoras
 
 - Sistema de verificación por correo electrónico
-- Validaciones con Zod o Joi
 - Tests unitarios e integración
 - Migraciones con TypeORM CLI
 
