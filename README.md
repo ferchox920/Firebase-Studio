@@ -125,5 +125,3 @@ ngrok http 3000
 [LinkedIn](https://linkedin.com/in/fernandoramones) · [GitHub](https://github.com/ferchox920)
 
 ---
-# Firebase-Studio
-# Firebase-Studio
