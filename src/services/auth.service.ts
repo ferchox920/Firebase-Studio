@@ -11,7 +11,7 @@ export const login = async (email: string, password: string) => {
   if (!match) throw new Error('Credenciales inválidas');
 
   if (!user.verified) {
-    throw new Error('Tu correo aún no ha sido verificado. Revisa tu bandeja de entrada.');
+    throw new Error('Usuario no verificado');
   }
 
   const token = generateToken({ id: user.id, email: user.email });
