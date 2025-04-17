@@ -8,15 +8,12 @@
     "dev": "nodemon --watch 'src/**' --ext 'ts,json' --exec 'npm run build && npm run start'",
     "build": "tsc",
     "start": "node dist/server.js",
-
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-
     "typeorm": "ts-node ./node_modules/typeorm/cli.js -d src/config/data-source.ts",
-    "migration:generate": "npm run typeorm migration:generate src/migrations/migrationName",
-    "migration:run": "npm run typeorm migration:run",
-    "migration:revert": "npm run typeorm migration:revert"
+    "typeorm:migrate:generate": "npm run build && npx typeorm migration:generate -d dist/config/data-source.js src/migrations/CreatePasswordReset",
+    "typeorm:migrate:run": "npm run build && npx typeorm migration:run -d dist/config/data-source.js"
   },
   "author": "Google LLC",
   "license": "Apache-2.0",

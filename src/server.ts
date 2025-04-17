@@ -1,8 +1,8 @@
 // src/server.ts
 import 'reflect-metadata';
 import app from './app';
-import AppDataSource from './data-source';
 import { logger } from './utils/logger';
+import AppDataSource from './config/data-source';
 
 const PORT = process.env.PORT || 3000;
 

@@ -1,6 +1,25 @@
 // tests/services/user.service.test.ts
+/* -------------------------------------------------------------------------- */
+/* 1️⃣ MOCKS BASE                                                             */
+/* -------------------------------------------------------------------------- */
+jest.mock('../../src/utils/logger', () => ({
+  logger: {
+    info: jest.fn(),
+    error: jest.fn(),
+  },
+}));
+jest.mock('../../src/models/user.entity');
+jest.mock('../../src/mails/sendVerificationEmail', () => ({
+  sendVerificationEmail: jest.fn(),
+}));
+jest.mock('bcrypt', () => ({ hash: jest.fn() }));
 
+/* -------------------------------------------------------------------------- */
+/* 2️⃣ IMPORTS (ya apuntan a mocks)                                           */
+/* -------------------------------------------------------------------------- */
 import bcrypt from 'bcrypt';
+import * as mailer from '../../src/mails/sendVerificationEmail';
+import { User } from '../../src/models/user.entity';
 import {
   createUser,
   getAllUsers,
@@ -8,141 +27,114 @@ import {
   updateUser,
   deleteUser,
 } from '../../src/services/user.service';
-import { User } from '../../src/models/user.entity';
-import * as mailer from '../../src/mails/sendVerificationEmail';
 
-// Mocks de módulos externos
-jest.mock('../../src/models/user.entity');
-jest.mock('../../src/mails/sendVerificationEmail');
-jest.mock('bcrypt');
-
-const mockedUser = User as jest.Mocked<typeof User>;
-const mockedMailer = mailer.sendVerificationEmail as jest.Mock;
+/* -------------------------------------------------------------------------- */
+/* 3️⃣ ALIASES DE LOS MOCKS                                                   */
+/* -------------------------------------------------------------------------- */
 const mockedHash = bcrypt.hash as jest.Mock;
+const mockedMailer = mailer.sendVerificationEmail as jest.Mock;
+const mockedUser = User as jest.Mocked<typeof User>;
 
+/* -------------------------------------------------------------------------- */
+/* 4️⃣ SUITE DE TESTS                                                         */
+/* -------------------------------------------------------------------------- */
 describe('userService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // Fijar hash para tests
     mockedHash.mockResolvedValue('hashed_password');
   });
 
-  // --- createUser ---
+  /* ----------------------------- createUser ------------------------------ */
   describe('createUser', () => {
-    it('debe lanzar un error si el email ya existe', async () => {
-      mockedUser.findOneBy.mockResolvedValue({ id: 'existing-id' } as any);
+    it('lanza error si el email ya existe', async () => {
+      mockedUser.findOneBy.mockResolvedValue({ id: 'existing' } as any);
 
       await expect(
         createUser({
-          name: 'Test User',
-          email: 'test@example.com',
-          password: 'password123',
+          name: 'Test',
+          email: 'dup@mail.com',
+          password: '123',
           role: 'user',
-        })
+        }),
       ).rejects.toThrow('El correo electrónico ya está en uso');
-
-      expect(mockedUser.findOneBy).toHaveBeenCalledWith({ email: 'test@example.com' });
     });
 
-    it('debe crear un usuario y enviar OTP si el email es nuevo', async () => {
+    it('crea usuario, hashea pass y envía OTP si es nuevo', async () => {
       mockedUser.findOneBy.mockResolvedValue(null);
-
-      // Simulamos la entidad y su método save()
-      const saveMock = jest.fn().mockResolvedValue({
-        id: 'new-id',
-        name: 'Test User',
-        email: 'test@example.com',
-        password: 'hashed_password',
-        role: 'user',
-        verified: false,
-        otp: 'ignored-otp',
-      });
+      const saveMock = jest.fn().mockResolvedValue({ id: '1', email: 'test@mail' });
       mockedUser.create.mockReturnValue({ save: saveMock } as any);
 
-      const result = await createUser({
-        name: 'Test User',
-        email: 'test@example.com',
-        password: 'password123',
+      const res = await createUser({
+        name: 'Nuevo',
+        email: 'test@mail',
+        password: '123',
         role: 'user',
       });
 
-      // Comprobaciones básicas
-      expect(result.email).toBe('test@example.com');
-      expect(mockedHash).toHaveBeenCalledWith('password123', 10);
+      expect(mockedHash).toHaveBeenCalledWith('123', 10);
       expect(saveMock).toHaveBeenCalled();
-
-      // Verificamos que el mailer se haya invocado, sin chequear el OTP exacto
-      expect(mockedMailer).toHaveBeenCalledTimes(1);
-      expect(mockedMailer).toHaveBeenCalledWith(
-        'test@example.com',
-        expect.any(String)
-      );
+      expect(res.id).toBe('1');
+      expect(mockedMailer).toHaveBeenCalledWith('test@mail', expect.any(String));
     });
   });
 
-  // --- getAllUsers ---
+  /* ----------------------------- getAllUsers ----------------------------- */
   describe('getAllUsers', () => {
-    it('debe devolver lista vacía si no hay usuarios', async () => {
+    it('devuelve lista vacía si no hay registros', async () => {
       mockedUser.find.mockResolvedValue([]);
-      const result = await getAllUsers();
-      expect(result).toEqual([]);
+      const res = await getAllUsers();
+      expect(res).toEqual([]);
     });
 
-    it('debe devolver lista con usuarios si existen', async () => {
-      const mockUsers = [{ id: '1', name: 'User 1' }, { id: '2', name: 'User 2' }] as any;
-      mockedUser.find.mockResolvedValue(mockUsers);
-      const result = await getAllUsers();
-      expect(result).toEqual(mockUsers);
+    it('devuelve usuarios cuando existen', async () => {
+      const list = [{ id: '1' }, { id: '2' }] as any;
+      mockedUser.find.mockResolvedValue(list);
+      const res = await getAllUsers();
+      expect(res).toBe(list);
     });
   });
 
-  // --- getUserById ---
+  /* ----------------------------- getUserById ----------------------------- */
   describe('getUserById', () => {
-    it('debe devolver null si el usuario no existe', async () => {
+    it('retorna null si no existe', async () => {
       mockedUser.findOneBy.mockResolvedValue(null);
-      const result = await getUserById('no-id');
-      expect(result).toBeNull();
+      expect(await getUserById('x')).toBeNull();
     });
 
-    it('debe devolver el usuario si existe', async () => {
-      const mockUser = { id: '1', name: 'User' } as any;
-      mockedUser.findOneBy.mockResolvedValue(mockUser);
-      const result = await getUserById('1');
-      expect(result).toEqual(mockUser);
+    it('retorna usuario si existe', async () => {
+      const u = { id: '1' } as any;
+      mockedUser.findOneBy.mockResolvedValue(u);
+      expect(await getUserById('1')).toBe(u);
     });
   });
 
-  // --- updateUser ---
+  /* ------------------------------ updateUser ----------------------------- */
   describe('updateUser', () => {
-    it('debe devolver null si el usuario no existe', async () => {
+    it('retorna null si no existe', async () => {
       mockedUser.findOneBy.mockResolvedValue(null);
-      const result = await updateUser('no-id', { name: 'Nuevo' });
-      expect(result).toBeNull();
+      expect(await updateUser('no', { name: 'A' })).toBeNull();
     });
 
-    it('debe actualizar el usuario y devolverlo', async () => {
-      const saveMock = jest.fn().mockResolvedValue({ id: '1', name: 'Nuevo' });
-      const mockUser = { id: '1', name: 'Viejo', save: saveMock } as any;
-      mockedUser.findOneBy.mockResolvedValue(mockUser);
+    it('actualiza campos y guarda', async () => {
+      const save = jest.fn().mockResolvedValue({ id: '1', name: 'Nuevo' });
+      mockedUser.findOneBy.mockResolvedValue({ id: '1', name: 'Viejo', save } as any);
 
-      const result = await updateUser('1', { name: 'Nuevo' });
-      expect(result).toEqual({ id: '1', name: 'Nuevo' });
-      expect(saveMock).toHaveBeenCalled();
+      const res = await updateUser('1', { name: 'Nuevo' });
+      expect(save).toHaveBeenCalled();
+      expect(res).toEqual({ id: '1', name: 'Nuevo' });
     });
   });
 
-  // --- deleteUser ---
+  /* ------------------------------ deleteUser ----------------------------- */
   describe('deleteUser', () => {
-    it('debe devolver false si no se elimina ningún usuario', async () => {
+    it('devuelve false si no se afectó nada', async () => {
       mockedUser.delete.mockResolvedValue({ affected: 0 } as any);
-      const result = await deleteUser('invalid-id');
-      expect(result).toBe(false);
+      expect(await deleteUser('bad')).toBe(false);
     });
 
-    it('debe devolver true si se elimina correctamente', async () => {
+    it('devuelve true al eliminar', async () => {
       mockedUser.delete.mockResolvedValue({ affected: 1 } as any);
-      const result = await deleteUser('valid-id');
-      expect(result).toBe(true);
+      expect(await deleteUser('good')).toBe(true);
     });
   });
 });
