@@ -1,10 +1,6 @@
+# 🚀 Node.js + TypeScript API con PostgreSQL, TypeORM, JWT y Más
 
-### 📄 `README.md`
-
-```markdown
-# 🚀 Node.js + TypeScript API con PostgreSQL, TypeORM y JWT
-
-Esta API REST está construida con **Node.js**, **TypeScript**, **Express**, y **TypeORM**, utilizando una base de datos **PostgreSQL** (en este caso, alojada en Railway). Incluye autenticación con JWT, manejo de errores, protección contra saturación y configuración de seguridad con Helmet y CORS.
+Esta API REST está construida con **Node.js**, **TypeScript**, **Express**, y **TypeORM**, utilizando una base de datos **PostgreSQL** (e.g., Railway). Incluye autenticación con JWT, sistema de verificación por correo, manejo de errores, protección contra saturación, configuración de seguridad con Helmet y CORS, migraciones y tests unitarios.
 
 ---
 
@@ -15,8 +11,10 @@ Esta API REST está construida con **Node.js**, **TypeScript**, **Express**, y *
 - **TypeORM**
 - **PostgreSQL**
 - **JWT (Autenticación)**
+- **Nodemailer** (Verificación por correo)
 - **Helmet / CORS / Rate Limiting**
-- **Firebase Studio / Google Project IDX compatible**
+- **Jest** (Tests unitarios)
+- **TypeORM CLI** (Migraciones)
 
 ---
 
@@ -24,24 +22,29 @@ Esta API REST está construida con **Node.js**, **TypeScript**, **Express**, y *
 
 1. Clonar el repositorio:
 
-```bash
-git clone https://github.com/tu_usuario/tu_repositorio.git
-cd tu_repositorio
-```
+    ```bash
+    git clone https://github.com/ferchox920/Firebase-Studio.git
+    cd Firebase-Studio
+    ```
 
 2. Instalar dependencias:
 
-```bash
-npm install
-```
+    ```bash
+    npm install
+    ```
 
-3. Crear archivo `.env` en la raíz:
+3. Crear archivo `.env` en la raíz (basado en `.env.example`):
 
-```env
-PORT=3000
-DATABASE_URL=postgresql://usuario:contraseña@host:puerto/db
-JWT_SECRET=tu_secreto
-```
+    ```ini
+    PORT=3000
+    DATABASE_URL=postgresql://usuario:contraseña@host:puerto/db
+    JWT_SECRET=tu_secreto
+
+    MAIL_HOST=smtp.ejemplo.com
+    MAIL_PORT=587
+    MAIL_USER=usuario_mail
+    MAIL_PASS=contraseña_mail
+    ```
 
 > La base de datos puede ser local o una instancia como [Railway](https://railway.app).
 
@@ -50,9 +53,15 @@ JWT_SECRET=tu_secreto
 ## 🏁 Scripts
 
 ```bash
-npm run dev       # Compila y levanta el servidor con nodemon
-npm run build     # Compila el código TypeScript
-npm run start     # Ejecuta la versión compilada (dist/)
+npm run dev           # Compila y levanta el servidor con nodemon
+npm run build         # Compila el código TypeScript
+npm run start         # Ejecuta la versión compilada (dist/)
+
+npm run migration:generate  # Genera nueva migración (TypeORM CLI)
+npm run migration:run       # Ejecuta migraciones pendientes
+npm run migration:revert    # Revierte la última migración
+
+npm test              # Corre tests con Jest
 ```
 
 ---
@@ -61,60 +70,81 @@ npm run start     # Ejecuta la versión compilada (dist/)
 
 ```
 src/
-├── app.ts                     # Configuración Express
-├── server.ts                  # Entry point
-├── config/                    # Configuración de la base de datos
-│   └── database.ts
-├── controllers/               # Controladores para rutas
-├── middlewares/              # Middleware: auth, errores, seguridad, etc
-├── models/                   # Entidades de TypeORM
-├── routes/                   # Definición de rutas
-├── services/                 # Lógica de negocio
-├── types/                    # Extensiones para Express (e.g. req.user)
-├── utils/                    # Logger, JWT utils, etc
+├── app.ts                     # Configuración Express y middlewares
+├── server.ts                  # Punto de arranque de la app
+├── config/                    # Configuración técnica
+│   ├── database.ts            # DataSource para la app
+│   └── mailer.config.ts       # Transporter de Nodemailer
+├── controllers/               # Lógica de controladores (auth, users)
+├── mails/                     # Plantillas y envíos de correo
+├── middlewares/               # Auth, CORS, rate-limit, errors, seguridad
+├── migrants/                  # Carpeta de migraciones TypeORM
+├── models/                    # Entidades TypeORM
+├── routes/                    # Definición de rutas (auth, users)
+├── services/                  # Lógica de negocio (auth, users)
+├── types/                     # Tipados globales/extensiones (req.user)
+├── utils/                     # Helpers: logger, jwt utils
+├── validators/                # Esquemas Zod (auth, user)
+├── data-source.ts             # Exporta AppDataSource para CLI
+└── dist/                      # Código compilado
+
+tests/
+├── services/
+│   ├── user.service.test.ts
+│   └── auth.service.test.ts
+└── controllers/  # (opcional tests e2e con supertest)
+
+.env.example                  # Ejemplo de variables de entorno
+jest.config.js                # Configuración de Jest
+package.json
+tsconfig.json
+README.md
 ```
 
 ---
 
-## 🔐 Autenticación
+## 🔐 Autenticación y Verificación
 
-- Registro (`POST /api/users`)
-- Login (`POST /api/auth/login`)
-- Rutas protegidas utilizan el header:
+- **Registro**: `POST /api/users`  
+  - Genera OTP y envía correo de verificación.  
+  - Usuario se crea con `verified=false`.
 
-```http
-Authorization: Bearer <token>
-```
+- **Verificar Email**: `POST /api/auth/verify`  
+  - Recibe `{ email, otp }` y marca `verified=true`.
+
+- **Login**: `POST /api/auth/login`  
+  - Solo usuarios verificados reciben JWT.  
+  - Rutas protegidas requieren header `Authorization: Bearer <token>`.
 
 ---
 
 ## 🔧 Seguridad
 
-Incluye:
-
-- `helmet` para headers seguros
-- `cors` configurado
-- `express-rate-limit` para limitar cantidad de requests
+- `helmet` para headers seguros.  
+- `cors` configurado.  
+- `express-rate-limit` para limitar peticiones.  
+- Validaciones con **Zod** en body y params.
 
 ---
 
-## 🌍 Acceso desde Postman vía ngrok
+## 🧪 Testing
 
-Si estás desarrollando en Project IDX (Firebase Studio), podés exponer el servidor con:
+- Unit tests con **Jest** cubriendo servicios y lógica clave.  
+- Mock de `bcrypt`, `crypto`, `nodemailer` y modelos.
+
+---
+
+## 🌍 Desarrollo remoto con ngrok
+
+Para probar desde tu máquina local o Postman cuando trabajas en IDE en la nube:
 
 ```bash
 ngrok http 3000
 ```
 
-> Y usar la URL generada en Postman para probar los endpoints.
+Luego usa la URL pública en tus peticiones.
 
----
-
-## 🛠 Próximas mejoras
-
-- Sistema de verificación por correo electrónico
-- Tests unitarios e integración
-- Migraciones con TypeORM CLI
+> NO olvides cerrar `ngrok` (Ctrl+C) al terminar para no exponer tu API indefinidamente.
 
 ---
 
@@ -123,4 +153,3 @@ ngrok http 3000
 **Fernando Ramones**  
 [LinkedIn](https://linkedin.com/in/fernandoramones) · [GitHub](https://github.com/ferchox920)
 
----

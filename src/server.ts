@@ -1,16 +1,23 @@
+// src/server.ts
+import 'reflect-metadata';
 import app from './app';
-import { AppDataSource } from './config/database'; // 👈 Importá tu conexión aquí
+import AppDataSource from './data-source';
+import { logger } from './utils/logger';
 
 const PORT = process.env.PORT || 3000;
 
-AppDataSource.initialize()
-  .then(() => {
-    console.log('📦 Conectado con TypeORM a PostgreSQL');
- console.log('HOLA DESDE MI MOBIL')
+async function bootstrap() {
+  try {
+    await AppDataSource.initialize();
+    logger.info('📦 Conectado a la base de datos');
+
     app.listen(PORT, () => {
-      console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
+      logger.info(`🚀 Servidor corriendo en http://localhost:${PORT}`);
     });
-  })
-  .catch((error) => {
-    console.error('❌ Error conectando TypeORM:', error);
-  });
+  } catch (error) {
+    logger.error('❌ No se pudo inicializar la base de datos', error);
+    process.exit(1);
+  }
+}
+
+bootstrap();
